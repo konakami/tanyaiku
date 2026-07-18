@@ -1,0 +1,6 @@
+{
+  "name": "Tanyaiku - AI Chatbot Platform",
+  "description": "SaaS platform untuk chatbot AI multi-tenant dengan integrasi WhatsApp (WABA & Fonnte), sistem wallet saldo, dan simulasi Midtrans oleh Konakami Digital Indonesia.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
