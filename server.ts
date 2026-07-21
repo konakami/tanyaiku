@@ -11,6 +11,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Initialize Gemini Client
 let ai: GoogleGenAI | null = null;
@@ -312,6 +313,110 @@ ${chatbotConfig.knowledgeBase}
       reply: replyText,
       source: 'local_fallback_key_missing'
     });
+  }
+});
+
+// Webhook endpoint untuk menerima pesan WhatsApp dari Fonnte Gateway
+app.post('/api/webhook/fonnte', async (req, res) => {
+  // Fonnte mengirimkan data payload via POST parameters (bisa JSON atau urlencoded)
+  const { sender, message, device, name } = req.body;
+
+  console.log(`[Fonnte Webhook] Menerima chat dari ${sender} (${name || 'Tanpa Nama'}, Device: ${device || 'N/A'}): "${message}"`);
+
+  if (!message || !sender) {
+    return res.status(200).json({ status: 'ignored', reason: 'Pesan atau pengirim kosong' });
+  }
+
+  // Cek apakah asisten chatbot aktif dan terhubung
+  if (chatbotConfig.status !== 'active') {
+    console.log('[Fonnte Webhook] Chatbot sedang non-aktif. Mengabaikan pesan.');
+    return res.status(200).json({ status: 'ignored', reason: 'Chatbot non-aktif' });
+  }
+
+  // Pastikan channel Fonnte aktif dan memiliki token
+  if (whatsappConfig.channelType !== 'fonnte' || !whatsappConfig.fonnteToken) {
+    console.log('[Fonnte Webhook] Integrasi Fonnte tidak aktif atau token Fonnte kosong.');
+    return res.status(200).json({ status: 'ignored', reason: 'Fonnte tidak terkonfigurasi' });
+  }
+
+  // Cegah looping balasan jika pengirim adalah nomor perangkat itu sendiri (self-loop)
+  const cleanSender = sender.replace(/[^0-9]/g, '');
+  const cleanDevice = device ? device.replace(/[^0-9]/g, '') : '';
+  if (cleanSender === cleanDevice) {
+    console.log('[Fonnte Webhook] Pengirim sama dengan nomor perangkat Fonnte. Mengabaikan pesan untuk mencegah looping otomatis.');
+    return res.status(200).json({ status: 'ignored', reason: 'Mencegah looping balasan otomatis' });
+  }
+
+  // Buat instruksi sistem dan hasilkan balasan
+  const toneInstruction = chatbotConfig.tone === 'friendly' 
+    ? 'Gunakan bahasa Indonesia yang ramah, sopan, bersahabat, menggunakan sapaan hangat.' 
+    : chatbotConfig.tone === 'casual'
+    ? 'Gunakan bahasa Indonesia santai, akrab, menggunakan istilah kekinian tapi tetap sopan.'
+    : 'Gunakan bahasa Indonesia formal, profesional, lugas, dan efisien.';
+
+  const fullSystemInstruction = `${chatbotConfig.systemPrompt}
+  
+[KNOWLEDGE BASE / BASIS PENGETAHUAN ANDA]:
+${chatbotConfig.knowledgeBase}
+
+[PETUNJUK GAYA BICARA]:
+- Tone: ${chatbotConfig.tone} (${toneInstruction})
+- Jika pengguna bertanya di luar informasi yang Anda ketahui atau di luar basis pengetahuan, jawab secara halus atau gunakan pesan fallback berikut: "${chatbotConfig.fallbackMessage}".
+- Jadilah asisten chatbot yang membantu dan efisien untuk bisnis pelanggan.`;
+
+  let replyText = '';
+  try {
+    if (ai) {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.5-flash',
+        contents: message,
+        config: {
+          systemInstruction: fullSystemInstruction,
+          temperature: 0.7
+        }
+      });
+      replyText = response.text || chatbotConfig.fallbackMessage;
+    } else {
+      replyText = fallbackLocalMatch(message, chatbotConfig);
+    }
+  } catch (error) {
+    console.error('[Fonnte Webhook] Error saat generate balasan dengan Gemini:', error);
+    replyText = fallbackLocalMatch(message, chatbotConfig);
+  }
+
+  // Kirim balasan kembali ke pengirim lewat Fonnte Send API
+  try {
+    const fonnteApiUrl = 'https://api.fonnte.com/send';
+    
+    const params = new URLSearchParams();
+    params.append('target', sender);
+    params.append('message', replyText);
+
+    // Guardrail: Tambahkan jeda waktu acak 1.5 - 3 detik agar terlihat seperti manusia mengetik (mencegah banned)
+    const delayMs = Math.floor(Math.random() * 1500) + 1500;
+    
+    setTimeout(async () => {
+      try {
+        const response = await fetch(fonnteApiUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': whatsappConfig.fonnteToken,
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: params.toString()
+        });
+        
+        const result = await response.json();
+        console.log(`[Fonnte Webhook] Berhasil membalas pesan ke ${sender}. Response Fonnte:`, result);
+      } catch (sendErr) {
+        console.error('[Fonnte Webhook] Gagal mengirim balasan via Fonnte:', sendErr);
+      }
+    }, delayMs);
+
+    return res.status(200).json({ status: 'processing', reply: replyText });
+  } catch (err) {
+    console.error('[Fonnte Webhook] Gagal memicu pengiriman balasan:', err);
+    return res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
