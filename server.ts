@@ -1,6 +1,9 @@
 import express from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
+import fs from 'fs';
+import { initializeApp } from 'firebase/app';
+import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import { ChatbotConfig, WhatsappConfig, UserProfile, Transaction, BroadcastLog } from './src/types';
@@ -34,7 +37,7 @@ if (geminiKey && geminiKey !== "MY_GEMINI_API_KEY") {
   console.log("Gemini API key is not configured or uses default template value. Fallback mechanism will be used.");
 }
 
-// In-memory Database
+// In-memory Database Defaults
 let userProfile: UserProfile = {
   name: 'Akhmad Khudri',
   email: 'khudri@binadarma.ac.id',
@@ -46,6 +49,76 @@ let userProfile: UserProfile = {
   lowBalanceAlertEnabled: true,
   registeredAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days ago
 };
+
+// Initialize Firebase client SDK
+let db: any = null;
+
+try {
+  const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
+  if (fs.existsSync(configPath)) {
+    const configData = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    const firebaseApp = initializeApp({
+      apiKey: configData.apiKey,
+      authDomain: configData.authDomain,
+      projectId: configData.projectId,
+      storageBucket: configData.storageBucket,
+      messagingSenderId: configData.messagingSenderId,
+      appId: configData.appId
+    });
+    db = getFirestore(firebaseApp, configData.firestoreDatabaseId || "(default)");
+    console.log("Firebase initialized successfully with database ID:", configData.firestoreDatabaseId);
+  } else {
+    console.warn("firebase-applet-config.json not found. Firestore persistence is disabled.");
+  }
+} catch (error) {
+  console.error("Failed to initialize Firebase:", error);
+}
+
+// Configuration helper functions for Firestore
+async function loadConfigFromFirestore() {
+  if (!db) {
+    console.warn("Firestore not initialized, skipping configuration load.");
+    return;
+  }
+  try {
+    const docRef = doc(db, 'settings', 'tanyaiku_config');
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      if (data.userProfile) userProfile = data.userProfile;
+      if (data.chatbotConfig) chatbotConfig = data.chatbotConfig;
+      if (data.whatsappConfig) {
+        whatsappConfig = { ...whatsappConfig, ...data.whatsappConfig };
+      }
+      if (data.transactions) transactions = data.transactions;
+      if (data.broadcastLogs) broadcastLogs = data.broadcastLogs;
+      console.log("Configuration loaded successfully from Firestore.");
+    } else {
+      console.log("No config found in Firestore. Saving current defaults.");
+      await saveConfigToFirestore();
+    }
+  } catch (err) {
+    console.error("Error loading config from Firestore:", err);
+  }
+}
+
+async function saveConfigToFirestore() {
+  if (!db) return;
+  try {
+    const docRef = doc(db, 'settings', 'tanyaiku_config');
+    await setDoc(docRef, {
+      userProfile,
+      chatbotConfig,
+      whatsappConfig,
+      transactions,
+      broadcastLogs,
+      updatedAt: new Date().toISOString()
+    });
+    console.log("Configuration saved successfully to Firestore.");
+  } catch (err) {
+    console.error("Error saving config to Firestore:", err);
+  }
+}
 
 let chatbotConfig: ChatbotConfig = {
   id: 'bot-1',
@@ -150,7 +223,7 @@ app.get('/api/data', (req, res) => {
 });
 
 // Update profile settings
-app.post('/api/profile', (req, res) => {
+app.post('/api/profile', async (req, res) => {
   const { name, email, companyName, lowBalanceThreshold, lowBalanceAlertEnabled } = req.body;
   if (name !== undefined) userProfile.name = name;
   if (email !== undefined) userProfile.email = email;
@@ -158,11 +231,12 @@ app.post('/api/profile', (req, res) => {
   if (lowBalanceThreshold !== undefined) userProfile.lowBalanceThreshold = Number(lowBalanceThreshold);
   if (lowBalanceAlertEnabled !== undefined) userProfile.lowBalanceAlertEnabled = !!lowBalanceAlertEnabled;
   
+  await saveConfigToFirestore();
   res.json({ success: true, userProfile });
 });
 
 // Update Chatbot Settings
-app.post('/api/chatbot/config', (req, res) => {
+app.post('/api/chatbot/config', async (req, res) => {
   const { botName, systemPrompt, welcomeMessage, fallbackMessage, tone, status, knowledgeBase } = req.body;
   if (botName !== undefined) chatbotConfig.botName = botName;
   if (systemPrompt !== undefined) chatbotConfig.systemPrompt = systemPrompt;
@@ -172,11 +246,12 @@ app.post('/api/chatbot/config', (req, res) => {
   if (status !== undefined) chatbotConfig.status = status;
   if (knowledgeBase !== undefined) chatbotConfig.knowledgeBase = knowledgeBase;
   
+  await saveConfigToFirestore();
   res.json({ success: true, chatbotConfig });
 });
 
 // Update WhatsApp / Channel Settings
-app.post('/api/whatsapp/config', (req, res) => {
+app.post('/api/whatsapp/config', async (req, res) => {
   const { channelType, wabaApiKey, wabaPhoneNumberId, wabaVerified, fonnteToken, fonnteConnected, fonnteNumber } = req.body;
   if (channelType !== undefined) whatsappConfig.channelType = channelType;
   if (wabaApiKey !== undefined) whatsappConfig.wabaApiKey = wabaApiKey;
@@ -186,11 +261,12 @@ app.post('/api/whatsapp/config', (req, res) => {
   if (fonnteConnected !== undefined) whatsappConfig.fonnteConnected = !!fonnteConnected;
   if (fonnteNumber !== undefined) whatsappConfig.fonnteNumber = fonnteNumber;
   
+  await saveConfigToFirestore();
   res.json({ success: true, whatsappConfig });
 });
 
 // Midtrans simulated Topup payment
-app.post('/api/midtrans/topup', (req, res) => {
+app.post('/api/midtrans/topup', async (req, res) => {
   const { amount, paymentMethod } = req.body;
   if (!amount || isNaN(amount) || Number(amount) <= 0) {
     return res.status(400).json({ error: 'Jumlah topup tidak valid' });
@@ -211,6 +287,7 @@ app.post('/api/midtrans/topup', (req, res) => {
   userProfile.walletBalance += topupAmount;
   transactions.unshift(newTx);
 
+  await saveConfigToFirestore();
   res.json({
     success: true,
     transaction: newTx,
@@ -219,7 +296,7 @@ app.post('/api/midtrans/topup', (req, res) => {
 });
 
 // Upgrade / Change Subscription Plan
-app.post('/api/subscription/change', (req, res) => {
+app.post('/api/subscription/change', async (req, res) => {
   const { plan } = req.body;
   if (!['Starter', 'Pro', 'Business'].includes(plan)) {
     return res.status(400).json({ error: 'Paket tidak valid' });
@@ -253,6 +330,7 @@ app.post('/api/subscription/change', (req, res) => {
   userProfile.plan = plan as 'Starter' | 'Pro' | 'Business';
   userProfile.planStatus = 'active';
 
+  await saveConfigToFirestore();
   res.json({
     success: true,
     userProfile,
@@ -425,7 +503,7 @@ ${chatbotConfig.knowledgeBase}
 });
 
 // Send simulated Broadcast
-app.post('/api/broadcast/send', (req, res) => {
+app.post('/api/broadcast/send', async (req, res) => {
   const { message, recipientCount, channel } = req.body;
   const count = Number(recipientCount);
 
@@ -494,6 +572,9 @@ app.post('/api/broadcast/send', (req, res) => {
   };
   broadcastLogs.unshift(newLog);
 
+  // Save updated balance, quota, transaction list, and broadcast log list to Firestore
+  await saveConfigToFirestore();
+
   // Return success info, including trigger alert if balance goes below threshold
   const isBalanceLow = userProfile.lowBalanceAlertEnabled && (userProfile.walletBalance < userProfile.lowBalanceThreshold);
 
@@ -541,6 +622,9 @@ function fallbackLocalMatch(msg: string, config: ChatbotConfig): string {
 
 // Vite development setup / Static files production
 async function startServer() {
+  // Load configuration from Firestore on startup
+  await loadConfigFromFirestore();
+
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
