@@ -36,9 +36,9 @@ if (geminiKey && geminiKey !== "MY_GEMINI_API_KEY") {
 
 // In-memory Database
 let userProfile: UserProfile = {
-  name: 'Budi Santoso',
-  email: 'budi@konakami.id',
-  companyName: 'Ayam Geprek Konakami',
+  name: 'Akhmad Khudri',
+  email: 'khudri@binadarma.ac.id',
+  companyName: 'PT Konakami Digital Indonesia',
   plan: 'Starter',
   planStatus: 'active',
   walletBalance: 150000,
@@ -50,26 +50,30 @@ let userProfile: UserProfile = {
 let chatbotConfig: ChatbotConfig = {
   id: 'bot-1',
   botName: 'Asisten Tanyaiku',
-  systemPrompt: 'Kamu adalah asisten AI Chatbot cerdas untuk kedai Ayam Geprek Konakami. Tugasmu adalah melayani pelanggan dengan ramah dalam bahasa Indonesia, menjawab menu makanan, harga, jam operasional, lokasi, dan cara memesan.',
-  welcomeMessage: 'Halo! Selamat datang di Ayam Geprek Konakami. Ada yang bisa kami bantu hari ini?',
-  fallbackMessage: 'Maaf, saya belum memahami pertanyaan Anda. Silakan hubungi admin kami melalui nomor WhatsApp 0812-3456-7890.',
+  systemPrompt: 'Kamu adalah asisten AI Chatbot cerdas dan profesional untuk PT Konakami Digital Indonesia. Tugasmu adalah melayani pelanggan, calon mitra, dan anggota komunitas dengan ramah dalam bahasa Indonesia, menjawab pertanyaan tentang bidang usaha utama, produk (Degree Crypto Token/DCT), alamat kantor pusat, CEO, pencapaian pajak kripto, Bappebti, serta event yang sering diadakan.',
+  welcomeMessage: 'Halo! Selamat datang di PT Konakami Digital Indonesia. Saya asisten AI Tanyaiku. Ada yang bisa kami bantu hari ini mengenai teknologi digital, pelatihan profesional, atau Degree Crypto Token (DCT)?',
+  fallbackMessage: 'Maaf, saya belum memahami pertanyaan Anda. Silakan hubungi admin kami melalui nomor WhatsApp atau kunjungi kantor kami di Palembang.',
   tone: 'friendly',
   status: 'active',
-  knowledgeBase: `Daftar Menu & Harga:
-- Ayam Geprek Original: Rp 15.000 (pedas level 1-5)
-- Ayam Geprek Keju: Rp 18.000
-- Es Teh Manis: Rp 5.000
-- Es Jeruk: Rp 6.000
+  knowledgeBase: `PT Konakami Digital Indonesia:
+- Deskripsi: Perusahaan Indonesia yang bergerak di bidang pengembangan teknologi digital, literasi digital, dan cryptocurrency.
+- Bidang Usaha Utama: Pelatihan dan bimbingan profesional (professional training), pengembangan teknologi digital, serta pengembang Degree Crypto Token (DCT).
 
-Jam Operasional:
-- Buka setiap hari pukul 10.00 - 21.00 WIB
+Manajemen & Legalitas:
+- CEO: Sandy Ariesta, SIP., M.Si. (Chief Executive Officer).
+- Pajak Kripto & Regulasi: Pada tahun 2022, menjadi perusahaan pertama di Palembang yang membayar pajak kripto (PPn untuk penjualan pin aktivasi DCT Miner dan jasa penambangan), serta sukses mendaftarkan DCT ke Bappebti.
 
-Lokasi & Alamat:
-- Jl. Jenderal Sudirman No. 45, Palembang (Dekat kantor Konakami Digital Indonesia)
+Alamat Kantor & Lokasi:
+- Kantor Pusat: Jl. Brigjen Hasan Kasim No. R9, Kel. Bukit Sangkal, Kec. Kalidoni, Kota Palembang, Sumatera Selatan.
+- Alamat Registrasi: Jalan Flamboyan Blok D8-12, Palembang.
 
-Cara Memesan:
-- Kirim pesan ke WhatsApp ini dengan format: Nama - Pesanan - Alamat Pengiriman.
-- Pembayaran bisa transfer bank (BCA/Mandiri) atau Cash on Delivery (COD).`
+Produk & Token:
+- Degree Crypto Token (DCT): Token kripto utilitas besutan Konakami yang terdaftar resmi di Bappebti.
+
+Event & Komunitas:
+- Sering mengadakan event skala besar seperti Grand Digital Business Summit.
+- Aktif dalam diskusi dengan pejabat pemerintah (misalnya Wakil Menteri Perdagangan).
+- Mengadakan program komunitas seperti Coinfest Asia.`
 };
 
 let whatsappConfig: WhatsappConfig = {
@@ -113,7 +117,7 @@ let transactions: Transaction[] = [
 let broadcastLogs: BroadcastLog[] = [
   {
     id: 'BC-9001',
-    message: 'Promo Weekend Spesial! Diskon 10% untuk pemesanan melalui WhatsApp Ayam Geprek Konakami.',
+    message: 'Halo Komunitas! Ikuti Grand Digital Business Summit bersama PT Konakami Digital Indonesia untuk kupas tuntas ekosistem Degree Crypto Token (DCT).',
     recipientCount: 50,
     channelUsed: 'waba',
     cost: 0, // covered by free quota
@@ -122,7 +126,7 @@ let broadcastLogs: BroadcastLog[] = [
   },
   {
     id: 'BC-9002',
-    message: 'Menu baru Ayam Geprek Keju Mozzarella mulai besok! Yuk merapat ke outlet Ayam Geprek Konakami.',
+    message: 'Pengumuman Penting: Sesi Bimbingan Profesional (Professional Training) teknologi digital angkatan baru akan dimulai besok. Hubungi kami segera!',
     recipientCount: 100,
     channelUsed: 'fonnte',
     cost: 10000, // Rp 100 per message
@@ -511,27 +515,24 @@ function fallbackLocalMatch(msg: string, config: ChatbotConfig): string {
     return config.welcomeMessage;
   }
   
-  if (m.includes('menu') || m.includes('daftar') || m.includes('makan') || m.includes('minum') || m.includes('harga') || m.includes('geprek')) {
-    if (config.knowledgeBase.includes('Menu') || config.knowledgeBase.includes('Ayam')) {
-      const idx = config.knowledgeBase.indexOf('Menu');
-      const start = idx !== -1 ? idx : 0;
-      return "Berikut adalah daftar menu dan harga kami:\n\n" + config.knowledgeBase.substring(start, start + 350) + "...";
-    }
-    return "Kami menyajikan Ayam Geprek Original dengan tingkat pedas level 1-5 seharga Rp 15.000, serta Es Teh Manis dingin Rp 5.000!";
+  if (m.includes('bidang') || m.includes('usaha') || m.includes('kerja') || m.includes('layanan') || m.includes('bimbingan') || m.includes('pelatihan')) {
+    return "PT Konakami Digital Indonesia bergerak di bidang pengembangan teknologi digital, bimbingan & pelatihan profesional, serta pengembangan Degree Crypto Token (DCT).";
   }
 
-  if (m.includes('jam') || m.includes('buka') || m.includes('tutup') || m.includes('operasional')) {
-    if (config.knowledgeBase.includes('Jam') || config.knowledgeBase.includes('Operasional')) {
-      return "Outlet kami buka setiap hari mulai pukul 10.00 hingga 21.00 WIB!";
-    }
+  if (m.includes('ceo') || m.includes('sandy') || m.includes('pemimpin') || m.includes('direktur')) {
+    return "CEO (Chief Executive Officer) PT Konakami Digital Indonesia adalah Bpk. Sandy Ariesta, SIP., M.Si.";
   }
 
-  if (m.includes('lokasi') || m.includes('alamat') || m.includes('dimana') || m.includes('kantor') || m.includes('tempat')) {
-    return "Kami berlokasi di Jl. Jenderal Sudirman No. 45, Palembang (dekat dengan kantor pusat Konakami Digital Indonesia). Silakan berkunjung!";
+  if (m.includes('lokasi') || m.includes('alamat') || m.includes('dimana') || m.includes('kantor') || m.includes('pusat')) {
+    return "Kantor Pusat kami berada di Jl. Brigjen Hasan Kasim No. R9, Kel. Bukit Sangkal, Kec. Kalidoni, Palembang, Sumatera Selatan.";
   }
 
-  if (m.includes('cara') || m.includes('pesan') || m.includes('order') || m.includes('beli')) {
-    return "Cara memesan sangat mudah! Cukup kirimkan pesan dengan format: Nama - Pesanan - Alamat Pengiriman ke nomor WhatsApp ini.";
+  if (m.includes('kripto') || m.includes('token') || m.includes('dct') || m.includes('pajak')) {
+    return "Kami adalah pengembang Degree Crypto Token (DCT) yang terdaftar resmi di Bappebti. Pada tahun 2022, PT Konakami menjadi perusahaan pertama di Palembang yang membayar pajak kripto secara tertib.";
+  }
+
+  if (m.includes('event') || m.includes('seminar') || m.includes('summit') || m.includes('coinfest')) {
+    return "Kami sering mengadakan event besar seperti Grand Digital Business Summit, diskusi regulasi dengan Wakil Menteri Perdagangan, serta berpartisipasi di program komunitas global seperti Coinfest Asia.";
   }
 
   return config.fallbackMessage;
