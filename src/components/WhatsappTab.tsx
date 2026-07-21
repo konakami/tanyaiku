@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, Sparkles, MessageSquare, Save, RefreshCw, Smartphone, Key, CheckCircle, AlertCircle } from 'lucide-react';
+import { Shield, Sparkles, MessageSquare, Save, RefreshCw, Smartphone, Key, CheckCircle, AlertCircle, Copy, Check } from 'lucide-react';
 import { WhatsappConfig } from '../types';
 
 interface WhatsappTabProps {
@@ -16,6 +16,14 @@ export default function WhatsappTab({ whatsappConfig, onSaveConfig, isSaving }: 
   const [fonnteToken, setFonnteToken] = useState(whatsappConfig.fonnteToken);
   const [fonnteConnected, setFonnteConnected] = useState(whatsappConfig.fonnteConnected);
   const [fonnteNumber, setFonnteNumber] = useState(whatsappConfig.fonnteNumber);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyWebhook = () => {
+    const webhookUrl = `${window.location.origin}/api/webhook/fonnte`;
+    navigator.clipboard.writeText(webhookUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -184,6 +192,64 @@ export default function WhatsappTab({ whatsappConfig, onSaveConfig, isSaving }: 
                       </span>
                     </div>
                   </div>
+                </div>
+
+                {/* Webhook Configuration Guide */}
+                <div className="bg-slate-950 border border-purple-950/40 p-4 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-purple-400 flex items-center gap-1.5">
+                      <MessageSquare className="w-4 h-4" />
+                      <span>URL Webhook Tanyaiku untuk Fonnte</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleCopyWebhook}
+                      className="text-[10px] bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-2 py-1 rounded transition-all flex items-center gap-1 cursor-pointer"
+                    >
+                      {copied ? (
+                        <>
+                          <Check className="w-3 h-3 text-teal-400" />
+                          <span className="text-teal-400">Tersalin!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          <span>Salin URL</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    Salin URL webhook di bawah ini dan tempelkan ke menu <strong>Webhook</strong> di dashboard Fonnte Anda agar AI Tanyaiku otomatis menjawab chat WhatsApp yang masuk secara instan:
+                  </p>
+                  <div className="bg-slate-900 border border-slate-800 p-2 rounded-lg text-[11px] font-mono text-slate-300 select-all overflow-x-auto whitespace-nowrap">
+                    {window.location.origin}/api/webhook/fonnte
+                  </div>
+                </div>
+
+                {/* Guardrail Safety Warnings & Best Practices */}
+                <div className="bg-amber-500/5 border border-amber-500/20 p-4 rounded-xl space-y-3">
+                  <div className="flex items-center gap-2 text-amber-400">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <h4 className="text-xs font-bold uppercase tracking-wider">Guardrail Keamanan & Anti-Ban</h4>
+                  </div>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    Penggunaan gateway WhatsApp non-resmi (WABA unofficial) memiliki risiko nomor Anda diblokir oleh pihak WhatsApp/Meta jika terindikasi spamming. <strong>Tanyaiku mendesak Anda mematuhi guardrail berikut:</strong>
+                  </p>
+                  <ul className="text-[11px] text-slate-400 space-y-1.5 list-disc pl-4">
+                    <li>
+                      <strong>Jangan Kirim Broadcast Massal ke Nomor Baru:</strong> Kirim broadcast promosi hanya ke pelanggan setia yang sudah menyimpan nomor WhatsApp Anda di kontak mereka.
+                    </li>
+                    <li>
+                      <strong>Format Pesan Harus Dinamis:</strong> Hindari mengirim pesan broadcast identik ke ratusan nomor sekaligus. Manfaatkan personalisasi nama atau detail pesanan unik.
+                    </li>
+                    <li>
+                      <strong>Fitur Jeda Pengetikan Aktif:</strong> Sistem Tanyaiku otomatis menyisipkan jeda acak <strong>1.5 hingga 3 detik</strong> sebelum membalas pesan, agar pola chat Anda terlihat alami menyerupai ketikan manusia asli.
+                    </li>
+                    <li>
+                      <strong>Pancing Interaksi Alami:</strong> Mintalah pelanggan untuk membalas chat Anda terlebih dahulu agar terhindar dari deteksi spam otomatis Meta.
+                    </li>
+                  </ul>
                 </div>
               </div>
             )}
