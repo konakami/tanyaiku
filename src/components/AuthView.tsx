@@ -8,9 +8,9 @@ interface AuthViewProps {
 
 export default function AuthView({ onBackToLanding, onLoginSuccess }: AuthViewProps) {
   const [isLogin, setIsLogin] = useState(true);
-  const [name, setName] = useState('Budi Santoso');
-  const [email, setEmail] = useState('budi@konakami.id');
-  const [companyName, setCompanyName] = useState('Ayam Geprek Konakami');
+  const [name, setName] = useState('Akhmad Khudri');
+  const [email, setEmail] = useState('khudri@binadarma.ac.id');
+  const [companyName, setCompanyName] = useState('PT Konakami Digital Indonesia');
   const [password, setPassword] = useState('password123');
   const [error, setError] = useState('');
 
@@ -22,17 +22,17 @@ export default function AuthView({ onBackToLanding, onLoginSuccess }: AuthViewPr
     }
     setError('');
     onLoginSuccess({
-      name: isLogin ? 'Budi Santoso' : name,
+      name: isLogin ? 'Akhmad Khudri' : name,
       email: email,
-      companyName: isLogin ? 'Ayam Geprek Konakami' : companyName
+      companyName: isLogin ? 'PT Konakami Digital Indonesia' : companyName
     });
   };
 
   const handleDemoLogin = () => {
     onLoginSuccess({
-      name: 'Budi Santoso',
-      email: 'budi@konakami.id',
-      companyName: 'Ayam Geprek Konakami'
+      name: 'Akhmad Khudri',
+      email: 'khudri@binadarma.ac.id',
+      companyName: 'PT Konakami Digital Indonesia'
     });
   };
 
