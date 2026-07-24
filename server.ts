@@ -3,7 +3,7 @@ import path from 'path';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, getDocFromServer, setDoc, setLogLevel } from 'firebase/firestore';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import { ChatbotConfig, WhatsappConfig, UserProfile, Transaction, BroadcastLog } from './src/types';
@@ -65,6 +65,7 @@ try {
       messagingSenderId: configData.messagingSenderId,
       appId: configData.appId
     });
+    setLogLevel('error');
     db = getFirestore(firebaseApp, configData.firestoreDatabaseId || "(default)");
     console.log("Firebase initialized successfully with database ID:", configData.firestoreDatabaseId);
   } else {
@@ -82,7 +83,12 @@ async function loadConfigFromFirestore() {
   }
   try {
     const docRef = doc(db, 'settings', 'tanyaiku_config');
-    const docSnap = await getDoc(docRef);
+    let docSnap;
+    try {
+      docSnap = await getDocFromServer(docRef);
+    } catch {
+      docSnap = await getDoc(docRef);
+    }
     if (docSnap.exists()) {
       const data = docSnap.data();
       if (data.userProfile) userProfile = data.userProfile;
